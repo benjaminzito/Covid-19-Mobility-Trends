@@ -1,0 +1,134 @@
+---
+title: "Covid-19 Mobility Trends"
+output: html_document
+---
+
+```{r echo=FALSE}
+setwd("C:/Users/yungz/Desktop/Ben R/R Projects/Covid-19-Mobility-Trends")
+load(".RData")
+```
+
+
+#### Covid 19 has certainly altered people's transportation patters. One indirect measure of this is by looking at the rate of request for directions using mobile apps such as Apple Maps.
+
+###### The data can be found here in a .csv format: https://covid19.apple.com/mobility
+
+```{r warning=FALSE, message=FALSE}
+library(readr)
+applemobilitytrends_2020_08_29 <- read_csv("applemobilitytrends-2020-08-29.csv")
+data <- applemobilitytrends_2020_08_29
+```
+
+###### Wrangling the data
+
+```{r warning=FALSE, message=FALSE}
+library(sqldf)
+UnitedStates <- sqldf(
+  "Select *
+ From data
+ Where region = 'United States'
+ "
+)
+
+UnitedStates <- UnitedStates[,-c(1,2,4,5,6)]
+```
+
+###### Pivoting from wide to long
+
+```{r warning=FALSE, message=FALSE}
+library(tidyverse)
+
+US_Transposed <- UnitedStates %>%
+  pivot_longer(cols = c(`2020-01-13`:`2020-08-29`), names_to = "date", values_to = "index")
+
+US_Transposed$date <- str_replace_all(US_Transposed$date, "2020-", "")
+```
+
+###### Plotting using ggplot2
+
+```{r warning=FALSE, message=FALSE}
+US_Transposed %>%
+  ggplot(aes(x = date, y = index, group = transportation_type))+
+  geom_line(aes(color = transportation_type))+
+  scale_x_discrete(breaks = c("01-13", "02-13", "03-13", "04-13", "05-13", "06-13", "07-13", "08-13"))+
+  scale_color_discrete(breaks = c("driving", "transit", "walking"), labels = c("Driving", "Transit", "Walking"))+
+  xlab("Date")+
+  ylab("Index")+
+  labs(title = "Rate of Request for Directions in Apple Maps",
+       subtitle = "Throughout the United States",
+       caption = "Data Source: Apple.com")+
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5),  
+        legend.position = "bottom", legend.title = element_blank())
+```
+
+###### Request for directions while driving and walking have returned to normal, but transit is still well below the normal amount prior to Covid-19. The request for driving directions in particular might be indicative of people opting to drive rather than flying for their summer vacations.
+
+***
+
+#### Speaking of summer, growing up and living in the Eastern Shore of Maryland most of my life, I'm well aware that people on the other side of the Bay Bridge enjoy visitng Ocean City for their vacations. Let's see if there is any data from this Apple dataset to support this.
+
+###### Wrangling Maryland data
+
+```{r warning=FALSE, message=FALSE}
+Maryland <- data %>%
+  filter(`sub-region` == 'Maryland',
+         geo_type == 'county')
+
+Maryland <- Maryland[,-c(1,4:6)]
+```
+
+###### Pivoting from wide to long
+
+```{r warning=FALSE, message=FALSE}
+Md_transposed <- Maryland %>%
+  pivot_longer(cols = c(`2020-01-13`:`2020-08-29`), names_to = "date", values_to = "index")
+```
+
+###### Using str_replace and gsub to remove unwanted text
+
+```{r warning=FALSE, message=FALSE}
+Md_transposed$date <- str_replace_all(Md_transposed$date, "2020-", "")
+Md_transposed$region <- gsub(pattern = " County", replacement = "", Md_transposed$region)
+```
+
+###### Plotting the rate of requesting driving directions for all Maryland counties
+
+
+```{r warning=FALSE, message=FALSE, fig.height=10, fig.width=10}
+Md_transposed %>%
+  ggplot(aes(x = date, y = index))+
+  geom_line(group = 1)+
+  xlab("Date")+
+  ylab("Index")+
+  labs(title = "Rate of Request for Driving Directions in Apple Maps",
+       subtitle = "Throughout the Maryland Counties",
+       caption = "Data Source: Apple.com")+
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5),  
+        legend.title = element_blank())+
+  labs(fill = FALSE)+
+  facet_wrap(~region, scales = "free_x")+
+  scale_x_discrete(breaks = c("01-13", "03-13", "05-13", "07-13"))
+```
+
+###### The y-axis scales make a big difference!
+
+```{r warning=FALSE, message=FALSE, fig.height=10, fig.width=10}
+Md_transposed %>%
+  ggplot(aes(x = date, y = index))+
+  geom_line(group = 1)+
+  xlab("Date")+
+  ylab("Index")+
+  labs(title = "Rate of Request for Driving Directions in Apple Maps",
+       subtitle = "Throughout the Maryland Counties",
+       caption = "Data Source: Apple.com")+
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5),  
+        legend.title = element_blank())+
+  labs(fill = FALSE)+
+  facet_wrap(~region, scales = "free")+
+  scale_x_discrete(breaks = c("01-13", "03-13", "05-13", "07-13"))
+```
+
+#### Worcester County is where Ocean City is located. As shown, starting around mid-May, the rate of requests for driving dirctions have increased.
+
+
+
